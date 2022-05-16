@@ -30,7 +30,7 @@ int *init_tab(){
     char *tmp;
     char *cpu_name ;
     int j = 0;
-    char * buffer = strtok_r(procStat, "\n", &tmp);  //buffer_origin to plik wejsciowy z danymi
+    char * buffer = strtok_r(procStat, "\n", &tmp);  //buffer_origin input file
     while(strcmp(cpu_name =strtok(buffer, " "),"intr")!=0)
         {
         int values[10];
@@ -75,7 +75,7 @@ void *parser(int cpu_tab[CORE][10]) {
         }
         char *tmp;
         char *cpu_name;
-        char *buffer = strtok_r(cpuStat, "\n", &tmp);  //buffer_origin to plik wejsciowy z danymi
+        char *buffer = strtok_r(cpuStat, "\n", &tmp);  //buffer_origin input file
 
         int i = 0;
         while (strcmp(cpu_name = strtok(buffer, " "), "intr") != 0) {

@@ -2,7 +2,6 @@
 #include <pthread.h>
 #include <stdbool.h>
 #include <unistd.h>
-#include <malloc.h>
 #include "sts_queue/sts_queue.h"
 #include <string.h>
 #include <stdlib.h>
@@ -16,7 +15,6 @@ StsHeader *transformedProcInfoQueue;
 
 char *readCurrentProcStat() {
     char *buffer;
-    //TODO length should not be fixed but calculated
     long length = 1024;
     FILE *file = fopen("/proc/stat", "r");
     buffer = malloc(length);
@@ -42,7 +40,7 @@ int *init_tab(){
 
         while( value != NULL )
             {
-                values[i] = (int)value;
+                values[i] = atoi(value);
                 value = strtok(NULL, " ");
                 i += 1;
             }
@@ -64,15 +62,13 @@ void *reader() {
             printf("Raw cpu data: %s\n", procStat);
         }
         StsQueue.push(rawCpuInfoQueue, procStat);
-
-        //TODO sleep should not be used
         sleep(FREQUENCY);
     }
 }
 
 void *parser(int cpu_tab[CORE][10]) {
     char *cpuStat;
-    printf("++++++++++++++++++++PARSER++++++++++++++\n");
+
     while ((cpuStat = StsQueue.pop(rawCpuInfoQueue)) != NULL) {
         if (DEBUG_ENABLED) {
             printf("Starting analysis on data: %.20s\n", cpuStat);
@@ -102,122 +98,70 @@ void *parser(int cpu_tab[CORE][10]) {
             i += 1;
             buffer = strtok_r(NULL, "\n", &tmp);
 
-            //TODO here we should analyse data and calculate usage
             //free(cpuStat);
         }
     }
+    //free(cpuStat);
 }
 
 void *analyzer() {
     printf("Starting analyzer thread...\n");
     int cpu_value1[CORE][10];
     int cpu_value2[CORE][10];
-    int i = 0;
-    int j = 0;
+    int i;
+
     while (true) {
-        i=0;
-        j=0;
         parser(cpu_value1);
         sleep(FREQUENCY);
         parser(cpu_value2);
 
-
-        /*
-        for(i;i<9;i++)
+        for(i=0;i<CORE;i++)
         {
-            for(j;j<10;j++)
-            {
-                printf("CPU%d:%d\n",i,cpu_value1[i][j]);
-                printf("CPU%d:%d\n",i,cpu_value
-            }
-
+            unsigned long long now_workingtime = 0;
+            unsigned long long prev_workingtime = 0;
+            unsigned long long workingtime = 0;
+            unsigned long long now_idletime = 0;
+            unsigned long long prev_idletime = 0;
+            unsigned long long all_time = 0;
+            long double result[CORE] ;
+            char buffer[32];
+            now_workingtime = cpu_value2[i][0] + cpu_value2[i][1] + cpu_value2[i][2] + cpu_value2[i][5] + cpu_value2[i][6];
+            prev_workingtime = cpu_value1[i][0] + cpu_value1[i][1] + cpu_value1[i][2] + cpu_value1[i][5] + cpu_value1[i][6];
+            workingtime =  now_workingtime - prev_workingtime;
+            now_idletime = cpu_value2[i][3] +  cpu_value2[i][4];
+            prev_idletime = cpu_value1[i][3] +  cpu_value2[i][4];
+            all_time = (now_workingtime - prev_workingtime) + (now_idletime - prev_idletime);
+            result[i] = (long double)workingtime / all_time * 100.0L;
+            //printf("CPU%d Usage: %.02Lf%%\n",i,(long double)workingtime / all_time * 100.0L);
+            snprintf(buffer, sizeof(buffer), "CPU%d %.02Lf", i,result[i]);
+            StsQueue.push(transformedProcInfoQueue, buffer);
+            sleep(0.1);
         }
-         */
-        //TODO here we should analyse data and calculate usage
-
-
 
     }
-
-    StsQueue.push(transformedProcInfoQueue, "TODO: usage to be calculated");
-
 }
 
 
-/*
-void *analyzer() {
-    printf("Starting analyzer thread...\n");
-    int *cpu_value1[CORE][10];
-    int *cpu_value2[CORE][10];
-    parser(cpu_value1);
-    sleep(FREQUENCY);
-    parser(cpu_value2);
-
-    while (true) {
-        while ((cpuStat = StsQueue.pop(rawCpuInfoQueue)) != NULL) {
-            if (DEBUG_ENABLED) {
-                printf("Starting analysis on data: %.20s\n", cpuStat);
-            }
-            char *tmp;
-            char *cpu_name ;
-            char * buffer = strtok_r(cpuStat, "\n", &tmp);  //buffer_origin to plik wejsciowy z danymi
-            int i = 0;
-
-            while(strcmp(cpu_name =strtok(buffer, " "),"intr")!=0)
-            {
-                printf( "Nazwa CPU: %s\n", cpu_name );
-
-                long j = 0;
-
-                char * value = strtok(NULL, " ");
-
-                while( value != NULL ) {
-                    values[i][j] = (int)value;
-                    printf("i: %d, j: %d\t",i,j);
-                    printf( "Value: %s\n", value ); //printing each token
-
-                    value = strtok(NULL, " ");
-                    j += 1;
-                }
-                i += 1;
-                buffer = strtok_r(NULL, "\n", &tmp);
-
-                //TODO here we should analyse data and calculate usage
-
-
-
-            }
-
-
-
-            StsQueue.push(transformedProcInfoQueue, "TODO: usage to be calculated");
-
-            free(cpuStat);
-        }
-        //TODO sleep should not be used
-        sleep(FREQUENCY);
-    }
-}
-*/
 void *printer() {
     printf("Starting printer thread...\n");
 
     char *procStat;
 
-    while (true) {
-        while ((procStat = StsQueue.pop(transformedProcInfoQueue)) != NULL) {
-            printf("CPU usage %s\n", procStat);
+    while (true)
+    {
+        while ((procStat = StsQueue.pop(transformedProcInfoQueue)) != NULL)
+        {
+            //printf("CPU usage %s %\n",procStat);
+            printf("Usage %s %\n",procStat);
         }
-
-        //TODO sleep should not be used
-        sleep(FREQUENCY);
+        //sleep(FREQUENCY);
     }
 }
 
 int main() {
     printf("Starting CPU analysis\n");
     CORE = init_tab();
-    printf("Amount of cores: %i\n",CORE);
+    printf("Amount of cores: %i\n",CORE-2);
 
     rawCpuInfoQueue = StsQueue.create();
     transformedProcInfoQueue = StsQueue.create();

@@ -24,14 +24,13 @@ char *readCurrentProcStat() {
     return buffer;
 }
 
-int *init_tab(){
+int init_tab(){
     char *procStat = readCurrentProcStat();
     printf("INIT TAB...\n");
     char *tmp;
-    char *cpu_name ;
     int j = 0;
     char * buffer = strtok_r(procStat, "\n", &tmp);  //buffer_origin input file
-    while(strcmp(cpu_name =strtok(buffer, " "),"intr")!=0)
+    while(strcmp(strtok(buffer, " "),"intr")!=0)
         {
         int values[10];
         int i = 0;
@@ -98,10 +97,9 @@ void *parser(int cpu_tab[CORE][10]) {
             i += 1;
             buffer = strtok_r(NULL, "\n", &tmp);
 
-            //free(cpuStat);
         }
     }
-    //free(cpuStat);
+    free(cpuStat);
 }
 
 void *analyzer() {
@@ -125,6 +123,7 @@ void *analyzer() {
             unsigned long long all_time = 0;
             long double result[CORE] ;
             char buffer[32];
+
             now_workingtime = cpu_value2[i][0] + cpu_value2[i][1] + cpu_value2[i][2] + cpu_value2[i][5] + cpu_value2[i][6];
             prev_workingtime = cpu_value1[i][0] + cpu_value1[i][1] + cpu_value1[i][2] + cpu_value1[i][5] + cpu_value1[i][6];
             workingtime =  now_workingtime - prev_workingtime;
@@ -132,7 +131,10 @@ void *analyzer() {
             prev_idletime = cpu_value1[i][3] +  cpu_value2[i][4];
             all_time = (now_workingtime - prev_workingtime) + (now_idletime - prev_idletime);
             result[i] = (long double)workingtime / all_time * 100.0L;
-            //printf("CPU%d Usage: %.02Lf%%\n",i,(long double)workingtime / all_time * 100.0L);
+
+            if (DEBUG_ENABLED) {
+                //printf("CPU%d Usage: %.02Lf%%\n",i,(long double)workingtime / all_time * 100.0L);
+            }
             snprintf(buffer, sizeof(buffer), "CPU%d %.02Lf", i,result[i]);
             StsQueue.push(transformedProcInfoQueue, buffer);
             sleep(0.1);
@@ -151,7 +153,6 @@ void *printer() {
     {
         while ((procStat = StsQueue.pop(transformedProcInfoQueue)) != NULL)
         {
-            //printf("CPU usage %s %\n",procStat);
             printf("Usage %s %\n",procStat);
         }
         //sleep(FREQUENCY);
